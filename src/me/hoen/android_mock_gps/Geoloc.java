@@ -1,6 +1,8 @@
 package me.hoen.android_mock_gps;
 
-public class Geoloc {
+import java.io.Serializable;
+
+public class Geoloc implements Serializable {
 	protected double latitude;
 	protected double longitude;
 	protected double altitude = 0;

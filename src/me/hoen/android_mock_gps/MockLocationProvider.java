@@ -1,5 +1,8 @@
 package me.hoen.android_mock_gps;
 
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 
 import android.annotation.SuppressLint;
@@ -32,6 +35,7 @@ import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.opencsv.CSVReader;
 
 public class MockLocationProvider extends Service implements LocationListener,
 		ConnectionCallbacks, OnConnectionFailedListener, ResultCallback<Status> {
@@ -42,7 +46,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 	protected LocationRequest mLocationRequest;
 
 	private static final int GPS_START_INTERVAL = 500;
-	private ArrayList<Geoloc> data;
+	private ArrayList<Geoloc> data = new ArrayList<>();
 	private LocationManager locationManager;
 	private String mockLocationProvider = LocationManager.NETWORK_PROVIDER;
 
@@ -100,7 +104,21 @@ public class MockLocationProvider extends Service implements LocationListener,
 
 	private void initGpsLatLng() {
 		Log.v("File Name", filename);
-		data = GeolocStore.getInstance().getGeolocs();
+		try {
+			CSVReader reader = new CSVReader(new FileReader(filename));
+			String[] nextLine;
+			int count = 0;
+			while ((nextLine = reader.readNext()) != null) {
+				data.add(new Geoloc(Float.valueOf(nextLine[0]), Float.valueOf(nextLine[1]), 10, 5));
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		Log.v("Count", String.valueOf(data.size()));
+		//data = GeolocStore.getInstance().getGeolocs();
 	}
 
 	@SuppressLint("HandlerLeak")
@@ -119,7 +137,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 				}
 
 				sendEmptyMessageDelayed(nextIndex, /*data.get(currentIndex)
-						.getDuration() * */1000);
+						.getDuration() * */200);
 			}
 			super.handleMessage(msg);
 		}
@@ -147,7 +165,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 		LocationServices.FusedLocationApi.setMockLocation(mGoogleApiClient, location);
 		Intent locationReceivedIntent = new Intent(
 				MockGpsFragment.LOCATION_RECEIVED);
-		locationReceivedIntent.putExtra("geolocIndex", i);
+		locationReceivedIntent.putExtra("geoloc", g);
+		//locationReceivedIntent.putExtra("long", g.longitude);
 		sendBroadcast(locationReceivedIntent);
 	}
 

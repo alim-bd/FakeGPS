@@ -24,6 +24,13 @@ allprojects {
     }
 }
 
+android {
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
 dependencies {
     //compile fileTree(dir: 'libs', include: '*.jar')
     implementation 'org.osmdroid:osmdroid-android:6.1.0'
@@ -31,7 +38,8 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.1'
     implementation 'com.google.android.gms:play-services:7.0.0'
-    implementation 'com.nbsp:materialfilepicker:1.9.1'
+    implementation 'com.github.hedzr:android-file-chooser:v1.2.0-final'
+    implementation 'com.opencsv:opencsv:4.6'
 }
 
 android {
