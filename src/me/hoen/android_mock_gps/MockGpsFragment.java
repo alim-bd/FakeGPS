@@ -1,13 +1,20 @@
 package me.hoen.android_mock_gps;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -22,8 +29,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -35,11 +45,15 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.core.content.res.ResourcesCompat;
 import androidx.fragment.app.Fragment;
 
+import com.cocoahero.android.geojson.GeoJSON;
+import com.cocoahero.android.geojson.GeoJSONObject;
 import com.obsez.android.lib.filechooser.ChooserDialog;
 import com.obsez.android.lib.filechooser.internals.FileUtil;
 import com.opencsv.CSVReader;
@@ -55,7 +69,8 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 
 	protected ArrayList<Integer> geolocIndexes = new ArrayList<Integer>();
 	private Button btnSelectRoute;
-	private String routeFilePath;
+	private String routeFilePath = "";
+
 
 	public static final String LOCATION_RECEIVED = "me.hoen.android_mock_gps.LOCATION_RECEIVED";
 	protected BroadcastReceiver locationReceiver = new BroadcastReceiver() {
@@ -76,7 +91,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		View rootView = inflater.inflate(R.layout.fragment_mock_gps, container,
 				false);
 
-		Button startMockGpsBt = (Button) rootView
+		ImageButton startMockGpsBt = (ImageButton) rootView
 				.findViewById(R.id.start_mock_gps);
 
 		btnSelectRoute = rootView.findViewById(R.id.btn_open_route);
@@ -96,22 +111,20 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		mapView.getOverlays().add(path);
 
 		MyLocationNewOverlay myLocationNewOverlay = new MyLocationNewOverlay(mapView);
-		//myLocationNewOverlay.enableFollowLocation();
 		myLocationNewOverlay.enableMyLocation();
 		mapView.getOverlays().add(myLocationNewOverlay);
 
 		Paint paint = path.getPaint();
-		paint.setStrokeWidth(5);
+		paint.setStrokeWidth(20);
 		path.setPaint(paint);
-
 		mapController = mapView.getController();
-		mapController.setZoom(18);
+		mapController.setZoom(12);
 		btnSelectRoute.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
 				new ChooserDialog(getActivity())
 						.withFilter(false, false)
-						.withFilter(false, false, "csv")
+						.withFilter(false, false, "geojson")
 						.withStartFile(itl)
 						// to handle the result(s)
 						.withChosenListener(new ChooserDialog.Result() {
@@ -119,8 +132,57 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 							public void onChoosePath(String path, File pathFile) {
 								btnSelectRoute.setText(pathFile.getName());
 								routeFilePath = path;
-
+								StringBuilder stringBuilder = new StringBuilder();
+								InputStream is = null;
+								String UTF8 = "utf8";
+								int BUFFER_SIZE = 8192;
 								try {
+									is = new FileInputStream(pathFile);
+									String string = "";
+									BufferedReader reader = new BufferedReader(new InputStreamReader(is, UTF8), BUFFER_SIZE);
+									while (true) {
+										try {
+											if ((string = reader.readLine()) == null) break;
+										}
+										catch (IOException e) {
+											e.printStackTrace();
+										}
+										stringBuilder.append(string).append("\n");
+									}
+									is.close();
+								} catch (FileNotFoundException e) {
+									e.printStackTrace();
+								} catch (IOException e) {
+									e.printStackTrace();
+								}
+								Log.v("String Reader", stringBuilder.toString());
+								try {
+									JSONObject geoObject = new JSONObject(stringBuilder.toString());
+									JSONArray features = geoObject.getJSONArray("features");
+									if(features.length() > 0) {
+										JSONObject feature = features.getJSONObject(0);
+										JSONObject geometry = feature.getJSONObject("geometry");
+										JSONArray coordiantes = geometry.getJSONArray("coordinates");
+										for(int i = 0; i < coordiantes.length(); i++) {
+											JSONArray itemArray = new JSONArray(coordiantes.getString(i));
+											Log.v("Lat", String.valueOf(itemArray.getDouble(0)));
+											Log.v("Lat", String.valueOf(itemArray.getDouble(1)));
+											GeoPoint geoPoint = new GeoPoint(itemArray.getDouble(1), itemArray.getDouble(0));
+											pts.add(geoPoint);
+											if(i == 0) {
+												mapController.setCenter(geoPoint);
+												Geoloc firstGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
+												addMarker(firstGeo);
+												mapController.setZoom(12);
+											}
+										}
+									}
+								} catch (JSONException e) {
+									e.printStackTrace();
+								}
+
+								drawLine();
+								/*try {
 									CSVReader reader = new CSVReader(new FileReader(path));
 									String[] nextLine;
 									int count = 0;
@@ -141,7 +203,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 									e.printStackTrace();
 								}
 
-								drawLine();
+								drawLine();*/
 							}
 						})
 						.build()

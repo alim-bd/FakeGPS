@@ -1,8 +1,12 @@
 package me.hoen.android_mock_gps;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 import android.annotation.SuppressLint;
@@ -37,6 +41,11 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.opencsv.CSVReader;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.osmdroid.util.GeoPoint;
+
 public class MockLocationProvider extends Service implements LocationListener,
 		ConnectionCallbacks, OnConnectionFailedListener, ResultCallback<Status> {
 
@@ -47,6 +56,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 
 	private static final int GPS_START_INTERVAL = 500;
 	private ArrayList<Geoloc> data = new ArrayList<>();
+	private ArrayList<Location> pathPoints = new ArrayList<>();
 	private LocationManager locationManager;
 	private String mockLocationProvider = LocationManager.NETWORK_PROVIDER;
 
@@ -55,6 +65,9 @@ public class MockLocationProvider extends Service implements LocationListener,
 	public static final String SERVICE_STOP = "me.hoen.android_mock_gps.STOP";
 
 	private String filename = "";
+	private double speed = 40;		//km/h
+
+	private boolean isPlaying = false;
 
 	protected BroadcastReceiver stopServiceReceiver = new BroadcastReceiver() {
 		@Override
@@ -104,21 +117,68 @@ public class MockLocationProvider extends Service implements LocationListener,
 
 	private void initGpsLatLng() {
 		Log.v("File Name", filename);
+		StringBuilder stringBuilder = new StringBuilder();
+		InputStream is = null;
+		String UTF8 = "utf8";
+		int BUFFER_SIZE = 8192;
 		try {
-			CSVReader reader = new CSVReader(new FileReader(filename));
-			String[] nextLine;
-			int count = 0;
-			while ((nextLine = reader.readNext()) != null) {
-				data.add(new Geoloc(Float.valueOf(nextLine[0]), Float.valueOf(nextLine[1]), 10, 5));
+			is = new FileInputStream(filename);
+			String string = "";
+			BufferedReader reader = new BufferedReader(new InputStreamReader(is, UTF8), BUFFER_SIZE);
+			while (true) {
+				try {
+					if ((string = reader.readLine()) == null) break;
+				}
+				catch (IOException e) {
+					e.printStackTrace();
+				}
+				stringBuilder.append(string).append("\n");
 			}
+			is.close();
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		Log.v("String Reader", stringBuilder.toString());
+		try {
+			JSONObject geoObject = new JSONObject(stringBuilder.toString());
+			JSONArray features = geoObject.getJSONArray("features");
+			if(features.length() > 0) {
+				JSONObject feature = features.getJSONObject(0);
+				JSONObject geometry = feature.getJSONObject("geometry");
+				JSONArray coordiantes = geometry.getJSONArray("coordinates");
+				for(int i = 0; i < coordiantes.length(); i++) {
+					JSONArray itemArray = new JSONArray(coordiantes.getString(i));
+					GeoPoint geoPoint = new GeoPoint(itemArray.getDouble(1), itemArray.getDouble(0));
+					data.add(new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 10, 5));
+				}
+				for(int i = 0; i < data.size() - 1; i++) {
+					Geoloc firstPoint = data.get(i);
+					Geoloc secondPoint = data.get(i + 1);
+					double distance = calculateDistance(firstPoint.latitude, firstPoint.longitude, secondPoint.latitude, secondPoint.longitude);
+					double speedPerSec = speed * 1000 / 3600;
+					int totalTime = (int)(Math.ceil(distance / speedPerSec));
+					double latOffset = (secondPoint.latitude - firstPoint.latitude) / totalTime;
+					double longOffset = (secondPoint.longitude - firstPoint.longitude) / totalTime;
+					Log.v("Offset", latOffset + "," + longOffset);
+					double firstLat = firstPoint.latitude;
+					double firstLong = firstPoint.longitude;
+					for(int j = 0; j < totalTime; j++) {
+						Location location = new Location("Point");
+						location.setLatitude(firstLat);
+						location.setLongitude(firstLong);
+						pathPoints.add(location);
+						firstLat += latOffset;
+						firstLong += longOffset;
+					}
+				}
+			}
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 
-		Log.v("Count", String.valueOf(data.size()));
-		//data = GeolocStore.getInstance().getGeolocs();
+		isPlaying = true;
 	}
 
 	@SuppressLint("HandlerLeak")
@@ -126,18 +186,19 @@ public class MockLocationProvider extends Service implements LocationListener,
 
 		@Override
 		public void handleMessage(Message msg) {
-			if (data.size() > 0) {
+			if(isPlaying) {
+				if (pathPoints.size() > 0) {
 
-				int currentIndex = msg.what;
-				sendLocation(currentIndex);
+					int currentIndex = msg.what;
+					sendLocation(currentIndex);
 
-				int nextIndex = currentIndex + 1;
-				if (data.size() == nextIndex) {
-					nextIndex = currentIndex;
+					int nextIndex = currentIndex + 1;
+					if (pathPoints.size() == nextIndex) {
+						nextIndex = currentIndex;
+					} else {
+						sendEmptyMessageDelayed(nextIndex, 1000);
+					}
 				}
-
-				sendEmptyMessageDelayed(nextIndex, /*data.get(currentIndex)
-						.getDuration() * */200);
 			}
 			super.handleMessage(msg);
 		}
@@ -145,16 +206,16 @@ public class MockLocationProvider extends Service implements LocationListener,
 
 	@SuppressLint("NewApi")
 	private void sendLocation(int i) {
-		Geoloc g = data.get(i);
+		Location g = pathPoints.get(i);
 
 		Location location = new Location(mockLocationProvider);
 		location.setLatitude(g.getLatitude());
 		location.setLongitude(g.getLongitude());
-		location.setAltitude(g.getAltitude());
-		location.setAccuracy(g.getAccuracy());
-		location.setBearing(g.getBearing());
+		location.setAltitude(0);
+		location.setAccuracy(5);
+		location.setBearing(193);
 		location.setSpeed(g.getSpeed());
-		location.setTime(g.getTime());
+		location.setTime(System.currentTimeMillis());
 		if (android.os.Build.VERSION.SDK_INT >= 17) {
 			location.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
 		}
@@ -165,7 +226,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 		LocationServices.FusedLocationApi.setMockLocation(mGoogleApiClient, location);
 		Intent locationReceivedIntent = new Intent(
 				MockGpsFragment.LOCATION_RECEIVED);
-		locationReceivedIntent.putExtra("geoloc", g);
+		Geoloc geo = new Geoloc(location.getLatitude(), location.getLongitude(), 5, 10);
+		locationReceivedIntent.putExtra("geoloc", geo);
 		//locationReceivedIntent.putExtra("long", g.longitude);
 		sendBroadcast(locationReceivedIntent);
 	}
@@ -215,6 +277,18 @@ public class MockLocationProvider extends Service implements LocationListener,
 		// Log.d("lstech.aos.debug", "Service -> geoloc failed");
 	}
 
+	private double calculateDistance(double lat1, double long1, double lat2, double long2) {		// Calculate Distance in Meters
+		Location locationA = new Location("point A");
+		locationA.setLatitude(lat1);
+		locationA.setLongitude(long1);
+		Location locationB = new Location("point B");
+		locationB.setLatitude(lat2);
+		locationB.setLongitude(long2);
+
+		double distance = locationA.distanceTo(locationB);
+		return distance;
+	}
+
 	@Override
 	public void onConnected(Bundle connectionHint) {
 		Log.d("lstech.aos.debug", "Service -> geoloc connected");
@@ -238,8 +312,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 
 	@Override
 	public void onLocationChanged(Location location) {
-		Log.d(MainActivity.TAG, "Geolocation Service location changed : "
-				+ location.toString());
+		Log.d(MainActivity.TAG, "Speed : "
+				+ String.valueOf(location.getSpeed()));
 	}
 
 	protected void retrieveNearbyData() {

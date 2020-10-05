@@ -21,11 +21,13 @@
                 android:layout_height="wrap_content"
                 android:entries="@array/arr_speed"/>
         </LinearLayout>
-        <Button
+        <ImageButton
             android:id="@+id/start_mock_gps"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/start_mock_gps" />
+            android:src="@drawable/ic_play"
+            android:padding="8dp"
+            android:background="@drawable/round_button" />
     </LinearLayout>
     <org.osmdroid.views.MapView
         android:id="@+id/mapview"
