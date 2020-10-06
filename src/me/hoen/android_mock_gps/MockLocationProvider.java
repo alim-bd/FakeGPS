@@ -57,6 +57,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 	private static final int GPS_START_INTERVAL = 500;
 	private ArrayList<Geoloc> data = new ArrayList<>();
 	private ArrayList<Location> pathPoints = new ArrayList<>();
+	private ArrayList<Double> bearingDegrees = new ArrayList<>();
 	private LocationManager locationManager;
 	private String mockLocationProvider = LocationManager.NETWORK_PROVIDER;
 
@@ -167,6 +168,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 		int BUFFER_SIZE = 8192;
 		data.clear();
 		pathPoints.clear();
+		bearingDegrees.clear();
 		try {
 			is = new FileInputStream(filename);
 			String string = "";
@@ -215,6 +217,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 						Location location = new Location("Point");
 						location.setLatitude(firstLat);
 						location.setLongitude(firstLong);
+						double degree = calculateBearingDegree(firstLat, firstLong, firstLat + latOffset, firstLong + longOffset);
+						bearingDegrees.add(degree);
 						pathPoints.add(location);
 						firstLat += latOffset;
 						firstLong += longOffset;
@@ -249,13 +253,13 @@ public class MockLocationProvider extends Service implements LocationListener,
 	@SuppressLint("NewApi")
 	private void sendLocation(int i) {
 		Location g = pathPoints.get(i);
-
+		float degree = bearingDegrees.get(i).floatValue();
 		Location location = new Location(mockLocationProvider);
 		location.setLatitude(g.getLatitude());
 		location.setLongitude(g.getLongitude());
 		location.setAltitude(0);
 		location.setAccuracy(5);
-		location.setBearing(193);
+		location.setBearing(degree);
 		location.setSpeed(g.getSpeed());
 		location.setTime(System.currentTimeMillis());
 		if (android.os.Build.VERSION.SDK_INT >= 17) {
@@ -270,6 +274,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 				MockGpsFragment.LOCATION_RECEIVED);
 		Geoloc geo = new Geoloc(location.getLatitude(), location.getLongitude(), 5, 10);
 		locationReceivedIntent.putExtra("geoloc", geo);
+		locationReceivedIntent.putExtra("degree", degree);
+		Log.v("Degree", String.valueOf(degree));
 		//locationReceivedIntent.putExtra("long", g.longitude);
 		sendBroadcast(locationReceivedIntent);
 	}
@@ -333,6 +339,18 @@ public class MockLocationProvider extends Service implements LocationListener,
 
 		double distance = locationA.distanceTo(locationB);
 		return distance;
+	}
+
+	private double calculateBearingDegree(double lat1, double long1, double lat2, double long2) {		//Calculate heading degree
+		Location locationA = new Location("point A");
+		locationA.setLatitude(lat1);
+		locationA.setLongitude(long1);
+		Location locationB = new Location("point B");
+		locationB.setLatitude(lat2);
+		locationB.setLongitude(long2);
+
+		double bearingTo = locationA.bearingTo(locationB);
+		return bearingTo;
 	}
 
 	@Override

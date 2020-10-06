@@ -12,4 +12,16 @@
         <item>200 km/h</item>
         <item>400 km/h</item>
     </array>
+
+    <array name="arr_camera_speed">
+        <item>30 km/h</item>
+        <item>40 km/h</item>
+        <item>50 km/h</item>
+        <item>60 km/h</item>
+        <item>70 km/h</item>
+        <item>80 km/h</item>
+        <item>90 km/h</item>
+        <item>100 km/h</item>
+        <item>110 km/h</item>
+    </array>
 </resources>
