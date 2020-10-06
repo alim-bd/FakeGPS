@@ -46,6 +46,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -71,6 +72,14 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private Button btnSelectRoute;
 	private String routeFilePath = "";
 
+	private Spinner speedSpinner;
+
+	private ImageButton btnPlay;
+	private ImageButton btnStop;
+	private ImageButton btnRewind;
+
+	private boolean isPlaying = false;
+	private boolean isPause = false;
 
 	public static final String LOCATION_RECEIVED = "me.hoen.android_mock_gps.LOCATION_RECEIVED";
 	protected BroadcastReceiver locationReceiver = new BroadcastReceiver() {
@@ -90,12 +99,48 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			@Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
 		View rootView = inflater.inflate(R.layout.fragment_mock_gps, container,
 				false);
-
-		ImageButton startMockGpsBt = (ImageButton) rootView
-				.findViewById(R.id.start_mock_gps);
-
 		btnSelectRoute = rootView.findViewById(R.id.btn_open_route);
-		startMockGpsBt.setOnClickListener(getStartMockGpsListener());
+		speedSpinner = rootView.findViewById(R.id.speed_spinner);
+
+		btnPlay = rootView.findViewById(R.id.start_mock_gps);
+		btnStop = rootView.findViewById(R.id.stop_mock_gps);
+		btnRewind = rootView.findViewById(R.id.rewind_mock_gps);
+
+		btnPlay.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				if(!isPlaying) {
+					if(!isPause) {
+						startMockLocation();
+						btnPlay.setImageResource(R.drawable.ic_pause);
+						isPlaying = true;
+					}
+				} else {
+					if(!isPause) {
+						pauseMockLocation();
+						btnPlay.setImageResource(R.drawable.ic_play);
+					} else {
+						resumeMockLocation();
+						btnPlay.setImageResource(R.drawable.ic_pause);
+					}
+				}
+			}
+		});
+
+		btnStop.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				stopMockLocation();
+				btnPlay.setImageResource(R.drawable.ic_play);
+			}
+		});
+
+		btnRewind.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				rewindLocation();
+			}
+		});
 
         Configuration.getInstance().setUserAgentValue(getActivity().getPackageName());
 
@@ -173,7 +218,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 												mapController.setCenter(geoPoint);
 												Geoloc firstGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
 												addMarker(firstGeo);
-												mapController.setZoom(12);
+												mapController.setZoom(15);
 											}
 										}
 									}
@@ -275,9 +320,8 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 
 	private void drawLine() {
 		Polyline line = new Polyline(mapView);
-		line.setTitle("Central Park, NYC");
 		line.setSubDescription(Polyline.class.getCanonicalName());
-		line.setWidth(6f);
+		line.setWidth(10f);
 		line.setColor(getResources().getColor(R.color.wallet_holo_blue_light));
 		line.setPoints(pts);
 		line.setGeodesic(true);
@@ -288,17 +332,55 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		addMarker(g);
 	}
 
-	protected View.OnClickListener getStartMockGpsListener() {
-		return new View.OnClickListener() {
-
-			@Override
-			public void onClick(View v) {
-				if(!routeFilePath.isEmpty()) {
-					Intent intent = new Intent(getActivity(), MockLocationProvider.class);
-					intent.putExtra("file_name", routeFilePath);
-					getActivity().startService(intent);
-				}
+	private void startMockLocation() {
+		if(!routeFilePath.isEmpty()) {
+			int position = speedSpinner.getSelectedItemPosition();
+			int speed = 40;
+			switch(position) {
+				case 0:
+					speed = 40;
+					break;
+				case 1:
+					speed = 60;
+					break;
+				case 2:
+					speed = 100;
+					break;
+				case 3:
+					speed = 200;
+					break;
+				case 4:
+					speed = 400;
+					break;
 			}
-		};
+			Intent intent = new Intent(getActivity(), MockLocationProvider.class);
+			intent.putExtra("file_name", routeFilePath);
+			intent.putExtra("speed", speed);
+			getActivity().startService(intent);
+		}
+	}
+
+	private void pauseMockLocation() {
+		Intent i = new Intent(MockLocationProvider.SERVICE_PAUSE);
+		getActivity().sendBroadcast(i);
+		isPause = true;
+	}
+
+	private void resumeMockLocation() {
+		Intent i = new Intent(MockLocationProvider.SERVICE_PLAY);
+		getActivity().sendBroadcast(i);
+		isPause = false;
+	}
+
+	private void stopMockLocation() {
+		Intent i = new Intent(MockLocationProvider.SERVICE_STOP);
+		getActivity().sendBroadcast(i);
+		isPlaying = false;
+		isPause = false;
+	}
+
+	private void rewindLocation() {
+		Intent i = new Intent(MockLocationProvider.SERVICE_REWIND);
+		getActivity().sendBroadcast(i);
 	}
 }

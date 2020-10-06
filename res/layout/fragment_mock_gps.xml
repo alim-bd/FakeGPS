@@ -6,7 +6,8 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="4dp">
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -17,17 +18,45 @@
                 android:layout_height="wrap_content"
                 android:text="Open Route File"/>
             <Spinner
+                android:id="@+id/speed_spinner"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:entries="@array/arr_speed"/>
         </LinearLayout>
-        <ImageButton
-            android:id="@+id/start_mock_gps"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_play"
-            android:padding="8dp"
-            android:background="@drawable/round_button" />
+            android:orientation="horizontal">
+            <ImageButton
+                android:id="@+id/start_mock_gps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_play"
+                android:padding="8dp"
+                android:background="@drawable/round_button" />
+            <ImageButton
+                android:id="@+id/stop_mock_gps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_stop"
+                android:padding="8dp"
+                android:layout_marginLeft="16dp"
+                android:background="@drawable/round_button" />
+            <ImageButton
+                android:id="@+id/rewind_mock_gps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_rewind"
+                android:padding="8dp"
+                android:layout_marginLeft="16dp"
+                android:background="@drawable/round_button" />
+            <Button
+                android:id="@+id/btn_open_camera"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="16dp"
+                android:text="Open Camera File"/>
+        </LinearLayout>
     </LinearLayout>
     <org.osmdroid.views.MapView
         android:id="@+id/mapview"

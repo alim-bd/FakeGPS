@@ -63,11 +63,16 @@ public class MockLocationProvider extends Service implements LocationListener,
 	public static final int NOTIFICATION_ID = 42;
 
 	public static final String SERVICE_STOP = "me.hoen.android_mock_gps.STOP";
+	public static final String SERVICE_PAUSE = "me.hoen.android_mock_gps.PAUSE";
+	public static final String SERVICE_PLAY = "me.hoen.android_mock_gps.PLAY";
+	public static final String SERVICE_REWIND = "me.hoen.android_mock_gps.REWIND";
 
 	private String filename = "";
-	private double speed = 40;		//km/h
+	private int speed = 40;		//km/h
 
 	private boolean isPlaying = false;
+
+	private int currentIndex = 0;
 
 	protected BroadcastReceiver stopServiceReceiver = new BroadcastReceiver() {
 		@Override
@@ -75,9 +80,45 @@ public class MockLocationProvider extends Service implements LocationListener,
 			if (intent.getAction().equals(SERVICE_STOP)) {
 
 				data.clear();
+				isPlaying = false;
 				MockLocationProvider.this.stopSelf();
 
 				Log.d(MainActivity.TAG, "Mock GPS stopped");
+			}
+		}
+	};
+
+	protected BroadcastReceiver rewindServiceReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if (intent.getAction().equals(SERVICE_REWIND)) {
+				if(currentIndex >= 2) {
+					currentIndex -= 2;
+				} else {
+					currentIndex = 0;
+				}
+			}
+		}
+	};
+
+	protected BroadcastReceiver pauseServiceReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if (intent.getAction().equals(SERVICE_PAUSE)) {
+				isPlaying = false;
+				handler.removeCallbacksAndMessages(null);
+				Log.d(MainActivity.TAG, "Mock GPS paused");
+			}
+		}
+	};
+
+	protected BroadcastReceiver playServiceReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if (intent.getAction().equals(SERVICE_PLAY)) {
+				isPlaying = true;
+				handler.post(runnable);
+				Log.d(MainActivity.TAG, "Mock GPS Play");
 			}
 		}
 	};
@@ -92,6 +133,9 @@ public class MockLocationProvider extends Service implements LocationListener,
 		mGoogleApiClient.connect();
 
 		registerReceiver(stopServiceReceiver, new IntentFilter(SERVICE_STOP));
+		registerReceiver(pauseServiceReceiver, new IntentFilter(SERVICE_PAUSE));
+		registerReceiver(playServiceReceiver, new IntentFilter(SERVICE_PLAY));
+		registerReceiver(rewindServiceReceiver, new IntentFilter(SERVICE_REWIND));
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		locationManager.addTestProvider(mockLocationProvider, false, false,
 				false, false, true, true, true, 0, 5);
@@ -121,6 +165,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 		InputStream is = null;
 		String UTF8 = "utf8";
 		int BUFFER_SIZE = 8192;
+		data.clear();
+		pathPoints.clear();
 		try {
 			is = new FileInputStream(filename);
 			String string = "";
@@ -157,7 +203,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 					Geoloc firstPoint = data.get(i);
 					Geoloc secondPoint = data.get(i + 1);
 					double distance = calculateDistance(firstPoint.latitude, firstPoint.longitude, secondPoint.latitude, secondPoint.longitude);
-					double speedPerSec = speed * 1000 / 3600;
+					double speedPerSec = speed * 1000 / 3600.0f;
+					Log.v("Speed Per Sec", String.valueOf(speedPerSec));
 					int totalTime = (int)(Math.ceil(distance / speedPerSec));
 					double latOffset = (secondPoint.latitude - firstPoint.latitude) / totalTime;
 					double longOffset = (secondPoint.longitude - firstPoint.longitude) / totalTime;
@@ -181,26 +228,21 @@ public class MockLocationProvider extends Service implements LocationListener,
 		isPlaying = true;
 	}
 
-	@SuppressLint("HandlerLeak")
-	Handler handler = new Handler() {
-
+	Handler handler = new Handler();
+	Runnable runnable = new Runnable() {
 		@Override
-		public void handleMessage(Message msg) {
+		public void run() {
 			if(isPlaying) {
 				if (pathPoints.size() > 0) {
-
-					int currentIndex = msg.what;
 					sendLocation(currentIndex);
-
-					int nextIndex = currentIndex + 1;
-					if (pathPoints.size() == nextIndex) {
-						nextIndex = currentIndex;
+					currentIndex++;
+					if (pathPoints.size() == currentIndex) {
+						handler.removeCallbacksAndMessages(null);
 					} else {
-						sendEmptyMessageDelayed(nextIndex, 1000);
+						handler.postDelayed(runnable, 1000);
 					}
 				}
 			}
-			super.handleMessage(msg);
 		}
 	};
 
@@ -258,6 +300,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		filename = intent.getStringExtra("file_name");
+		speed = intent.getIntExtra("speed", 40);
 		return super.onStartCommand(intent, flags, startId);
 	}
 
@@ -265,6 +308,9 @@ public class MockLocationProvider extends Service implements LocationListener,
 	public void onDestroy() {
 		super.onDestroy();
 		unregisterReceiver(stopServiceReceiver);
+		unregisterReceiver(playServiceReceiver);
+		unregisterReceiver(pauseServiceReceiver);
+		unregisterReceiver(rewindServiceReceiver);
 	}
 
 	@Override
@@ -303,7 +349,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 			@Override
 			protected void onPostExecute(String result) {
 				displayStartNotification();
-				handler.sendEmptyMessageDelayed(0, GPS_START_INTERVAL);
+				handler.post(runnable);
 				super.onPostExecute(result);
 			}
 		}.execute("");
