@@ -33,6 +33,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Camera;
 import android.graphics.Color;
@@ -46,6 +48,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
+import android.provider.DocumentsContract;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -206,6 +210,14 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			}
 		});
 
+		File filePath = getActivity().getFilesDir();
+		File osmdroidBasePath = new File(filePath, "osmdroid");
+		osmdroidBasePath.mkdirs();
+		File osmdroidTilePath = new File(osmdroidBasePath, "tiles");
+		osmdroidTilePath.mkdirs();
+		Configuration.getInstance().setOsmdroidBasePath(osmdroidBasePath);
+		Configuration.getInstance().setOsmdroidTileCache(osmdroidTilePath);
+
         Configuration.getInstance().setUserAgentValue(getActivity().getPackageName());
 
 		String ext = FileUtil.getStoragePath(getActivity(), true);
@@ -232,7 +244,10 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		btnOpenCamera.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
-				new ChooserDialog(getActivity())
+				Intent mRequestFileIntent = new Intent(Intent.ACTION_GET_CONTENT);
+				mRequestFileIntent.setType("*/*");
+				startActivityForResult(mRequestFileIntent, 0);
+				/*new ChooserDialog(getActivity())
 						.withFilter(false, false)
 						.withFilter(false, false, "geojson")
 						.withStartFile(itl)
@@ -291,14 +306,17 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 							}
 						})
 						.build()
-						.show();
+						.show();*/
 			}
 		});
 
 		btnSelectRoute.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
-				new ChooserDialog(getActivity())
+				Intent mRequestFileIntent = new Intent(Intent.ACTION_GET_CONTENT);
+				mRequestFileIntent.setType("*/*");
+				startActivityForResult(mRequestFileIntent, 1);
+				/*new ChooserDialog(getActivity())
 						.withFilter(false, false)
 						.withFilter(false, false, "geojson")
 						.withStartFile(itl)
@@ -364,11 +382,142 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 							}
 						})
 						.build()
-						.show();
+						.show();*/
 			}
 		});
 
 		return rootView;
+	}
+
+	private void openCamera(Uri returnUri, File pathFile) {
+		btnOpenCamera.setText(pathFile.getName());
+		StringBuilder stringBuilder = new StringBuilder();
+		InputStream is = null;
+		String UTF8 = "utf8";
+		int BUFFER_SIZE = 8192;
+		try {
+			is = getActivity().getContentResolver().openInputStream(returnUri);
+			String string = "";
+			BufferedReader reader = new BufferedReader(new InputStreamReader(is, UTF8), BUFFER_SIZE);
+			while (true) {
+				try {
+					if ((string = reader.readLine()) == null) break;
+				}
+				catch (IOException e) {
+					e.printStackTrace();
+				}
+				stringBuilder.append(string).append("\n");
+			}
+			is.close();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		Log.v("String Reader", stringBuilder.toString());
+		try {
+			JSONObject geoObject = new JSONObject(stringBuilder.toString());
+			JSONArray features = geoObject.getJSONArray("features");
+			if(features.length() > 0) {
+				for(int i = 0; i < features.length(); i++) {
+					JSONObject feature = features.getJSONObject(i);
+					JSONObject geometry = feature.getJSONObject("geometry");
+					JSONArray coordiantes = geometry.getJSONArray("coordinates");
+					JSONObject properties = feature.getJSONObject("properties");
+					String angle = properties.getString("Angle");
+					String cameraId = properties.getString("Camera_ID");
+					int speed = properties.getInt("Speed");
+					JSONArray itemArray = new JSONArray(coordiantes.getString(0));
+					GeoPoint geoPoint = new GeoPoint(itemArray.getDouble(1), itemArray.getDouble(0));
+					CameraLocation cameraLocation = new CameraLocation(angle, speed, itemArray.getDouble(1), itemArray.getDouble(0), cameraId);
+					cameraLocations.add(cameraLocation);
+				}
+
+				addCameraPoints();
+			}
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void openRoute(Uri returnUri, File pathFile) {
+		btnSelectRoute.setText(pathFile.getName());
+		routeFilePath = returnUri.toString();
+		StringBuilder stringBuilder = new StringBuilder();
+		InputStream is = null;
+		String UTF8 = "utf8";
+		int BUFFER_SIZE = 8192;
+		try {
+			is = getActivity().getContentResolver().openInputStream(returnUri);
+			String string = "";
+			BufferedReader reader = new BufferedReader(new InputStreamReader(is, UTF8), BUFFER_SIZE);
+			while (true) {
+				try {
+					if ((string = reader.readLine()) == null) break;
+				}
+				catch (IOException e) {
+					e.printStackTrace();
+				}
+				stringBuilder.append(string).append("\n");
+			}
+			is.close();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		Log.v("String Reader", stringBuilder.toString());
+		try {
+			JSONObject geoObject = new JSONObject(stringBuilder.toString());
+			JSONArray features = geoObject.getJSONArray("features");
+			if(features.length() > 0) {
+				JSONObject feature = features.getJSONObject(0);
+				JSONObject geometry = feature.getJSONObject("geometry");
+				JSONArray coordiantes = geometry.getJSONArray("coordinates");
+				for(int i = 0; i < coordiantes.length(); i++) {
+					JSONArray itemArray = new JSONArray(coordiantes.getString(i));
+					Log.v("Lat", String.valueOf(itemArray.getDouble(0)));
+					Log.v("Lat", String.valueOf(itemArray.getDouble(1)));
+					GeoPoint geoPoint = new GeoPoint(itemArray.getDouble(1), itemArray.getDouble(0));
+					pts.add(geoPoint);
+					if(i == 0) {
+						mapController.setCenter(geoPoint);
+						Geoloc firstGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
+						addStartLocation(firstGeo, true);
+						mapController.setZoom(15);
+					} else if (i == coordiantes.length() - 1) {
+						Geoloc lastGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
+						addStartLocation(lastGeo, false);
+					}
+				}
+			}
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+
+		drawLine();
+	}
+
+	@Override
+	public void onActivityResult(int requestCode, int resultCode,
+								 Intent returnIntent) {
+		// If the selection didn't work
+
+		ParcelFileDescriptor mInputPFD;
+		if (resultCode != RESULT_OK) {
+			// Exit without doing anything else
+			return;
+		} else {
+			// Get the file's content URI from the incoming Intent
+			Uri returnUri = returnIntent.getData();
+			File file = new File(returnUri.getPath());
+			if(requestCode == 0) {
+				openCamera(returnUri, file);
+			} else if(requestCode == 1) {
+				openRoute(returnUri, file);
+			}
+
+		}
 	}
 
 	@Override
@@ -589,7 +738,8 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			e.printStackTrace();
 		}
 
-		String fileName = btnSelectRoute.getText().toString();
+		Uri uri = Uri.parse(routeFilePath);
+		String fileName = DocumentsContract.getDocumentId(uri).split(":")[1];
 		fileName = fileName.substring(0, fileName.length() - 8) + "_cam.geojson";
 		File file = new File(FileUtil.getStoragePath(getActivity(), false), fileName);
 		try {

@@ -20,6 +20,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -59,7 +60,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 	private ArrayList<Location> pathPoints = new ArrayList<>();
 	private ArrayList<Double> bearingDegrees = new ArrayList<>();
 	private LocationManager locationManager;
-	private String mockLocationProvider = LocationManager.NETWORK_PROVIDER;
+	private String mockLocationProvider = LocationManager.GPS_PROVIDER;
 
 	public static final int NOTIFICATION_ID = 42;
 
@@ -170,7 +171,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 		pathPoints.clear();
 		bearingDegrees.clear();
 		try {
-			is = new FileInputStream(filename);
+			is = getContentResolver().openInputStream(Uri.parse(filename));
 			String string = "";
 			BufferedReader reader = new BufferedReader(new InputStreamReader(is, UTF8), BUFFER_SIZE);
 			while (true) {

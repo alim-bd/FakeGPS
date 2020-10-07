@@ -14,13 +14,15 @@
             android:orientation="horizontal">
             <Button
                 android:id="@+id/btn_open_route"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="0.6"
                 android:text="Open Route File"/>
             <Spinner
                 android:id="@+id/speed_spinner"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="0.4"
                 android:entries="@array/arr_speed"/>
         </LinearLayout>
         <LinearLayout
@@ -55,6 +57,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="16dp"
+                android:singleLine="true"
                 android:text="Open Camera File"/>
         </LinearLayout>
     </LinearLayout>

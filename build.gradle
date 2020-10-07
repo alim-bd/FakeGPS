@@ -43,6 +43,7 @@ dependencies {
     implementation 'com.github.MKergall:osmbonuspack:6.6.0'
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.1'
+    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'com.google.android.gms:play-services:7.0.0'
     implementation 'com.github.hedzr:android-file-chooser:v1.2.0-final'
     implementation 'com.opencsv:opencsv:4.6'
