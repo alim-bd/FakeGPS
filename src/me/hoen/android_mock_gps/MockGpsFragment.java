@@ -117,6 +117,8 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 
 	private Marker currentDeletingCameraLocation;
 
+	private String cameraFileName = "";
+
 	public static final String LOCATION_RECEIVED = "me.hoen.android_mock_gps.LOCATION_RECEIVED";
 	protected BroadcastReceiver locationReceiver = new BroadcastReceiver() {
 		@Override
@@ -390,7 +392,10 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	}
 
 	private void openCamera(Uri returnUri, File pathFile) {
+		String fileName = DocumentsContract.getDocumentId(returnUri).split(":")[1];
+		cameraFileName = fileName;
 		btnOpenCamera.setText(pathFile.getName());
+		//btnOpenCamera.setText(fileName);
 		StringBuilder stringBuilder = new StringBuilder();
 		InputStream is = null;
 		String UTF8 = "utf8";
@@ -424,12 +429,13 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 					JSONObject geometry = feature.getJSONObject("geometry");
 					JSONArray coordiantes = geometry.getJSONArray("coordinates");
 					JSONObject properties = feature.getJSONObject("properties");
-					String angle = properties.getString("Angle");
+					double degree = properties.getDouble("Angle");
+					//String angle = properties.getString("Angle");
 					String cameraId = properties.getString("Camera_ID");
 					int speed = properties.getInt("Speed");
 					JSONArray itemArray = new JSONArray(coordiantes.getString(0));
 					GeoPoint geoPoint = new GeoPoint(itemArray.getDouble(1), itemArray.getDouble(0));
-					CameraLocation cameraLocation = new CameraLocation(angle, speed, itemArray.getDouble(1), itemArray.getDouble(0), cameraId);
+					CameraLocation cameraLocation = new CameraLocation(degree, speed, itemArray.getDouble(1), itemArray.getDouble(0), cameraId);
 					cameraLocations.add(cameraLocation);
 				}
 
@@ -579,6 +585,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			tvLongitude.setText(String.format("%.6f", geoPoint.getLongitude()));
 			currentLat = geoPoint.getLatitude();
 			currentLong = geoPoint.getLongitude();
+			currentDegree = degree;
 			if(degree >= -180 && degree < -135) {
 				currentDegreeText = "S";
 			}
@@ -611,7 +618,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private void addCameraLocation() {
 		GeoPoint geoPoint = new GeoPoint(currentLat, currentLong);
 		int currentSpeed = (cameraSpinner.getSelectedItemPosition() + 3) * 10;
-		CameraLocation cameraLocation = new CameraLocation(currentDegreeText, currentSpeed, currentLat, currentLong, "Camera_" + (currentCameraIndex + 1));
+		CameraLocation cameraLocation = new CameraLocation(currentDegree, currentSpeed, currentLat, currentLong, "Camera_" + (currentCameraIndex + 1));
 		cameraLocations.add(cameraLocation);
 
 		Marker marker = new Marker(mapView);
@@ -718,7 +725,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 				featureObject.put("type", "Feature");
 				JSONObject featureProperty = new JSONObject();
 				featureProperty.put("Camera_ID", "Camera_" + (i + 1));
-				featureProperty.put("Angle", item.getAngle());
+				featureProperty.put("Angle", item.getDegree());
 				featureProperty.put("Speed", item.getSpeed());
 				featureObject.put("properties", featureProperty);
 
@@ -739,8 +746,27 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		}
 
 		Uri uri = Uri.parse(routeFilePath);
-		String fileName = DocumentsContract.getDocumentId(uri).split(":")[1];
-		fileName = fileName.substring(0, fileName.length() - 8) + "_cam.geojson";
+		Log.v("Path", uri.getPath());
+		String fileName = uri.getPath().split(":")[1];//DocumentsContract.getDocumentId(uri).split(":")[1];
+		Log.v("FileName", fileName);
+		String[] segments = fileName.split("/");
+		String folderName = segments[segments.length - 1].split("_")[0];
+
+		String folderPath = "";
+		for(int i = 0; i < segments.length - 1; i++) {
+			folderPath = folderPath + segments[i] + "/";
+		}
+
+		Log.v("Folder Path", folderPath);
+
+		Log.v("Folder Name", folderName);
+
+		fileName = folderPath + folderName + /*fileName.substring(0, fileName.length() - 8) + */"_cam.geojson";
+
+		if(!cameraFileName.isEmpty()) {
+			fileName = cameraFileName;
+		}
+		Log.v("File Name", fileName);
 		File file = new File(FileUtil.getStoragePath(getActivity(), false), fileName);
 		try {
 			FileWriter out = new FileWriter(file);
