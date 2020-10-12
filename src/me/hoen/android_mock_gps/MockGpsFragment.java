@@ -477,31 +477,37 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			JSONObject geoObject = new JSONObject(stringBuilder.toString());
 			JSONArray features = geoObject.getJSONArray("features");
 			if(features.length() > 0) {
-				JSONObject feature = features.getJSONObject(0);
-				JSONObject geometry = feature.getJSONObject("geometry");
-				JSONArray coordiantes = geometry.getJSONArray("coordinates");
-				for(int i = 0; i < coordiantes.length(); i++) {
-					JSONArray itemArray = new JSONArray(coordiantes.getString(i));
-					Log.v("Lat", String.valueOf(itemArray.getDouble(0)));
-					Log.v("Lat", String.valueOf(itemArray.getDouble(1)));
-					GeoPoint geoPoint = new GeoPoint(itemArray.getDouble(1), itemArray.getDouble(0));
-					pts.add(geoPoint);
-					if(i == 0) {
-						mapController.setCenter(geoPoint);
-						Geoloc firstGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
-						addStartLocation(firstGeo, true);
-						mapController.setZoom(15);
-					} else if (i == coordiantes.length() - 1) {
-						Geoloc lastGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
-						addStartLocation(lastGeo, false);
+				for(int j = 0; j < features.length(); j++) {
+					JSONObject feature = features.getJSONObject(j);
+					JSONObject geometry = feature.getJSONObject("geometry");
+					JSONArray coordiantes = geometry.getJSONArray("coordinates");
+					pts.clear();
+					for(int i = 0; i < coordiantes.length(); i++) {
+						JSONArray itemArray = new JSONArray(coordiantes.getString(i));
+						Log.v("Lat", String.valueOf(itemArray.getDouble(0)));
+						Log.v("Lat", String.valueOf(itemArray.getDouble(1)));
+						GeoPoint geoPoint = new GeoPoint(Double.valueOf(itemArray.getDouble(1)), Double.valueOf(itemArray.getDouble(0)));
+						pts.add(geoPoint);
+						if(i == 0) {
+							if(j ==0 ) {
+								mapController.setCenter(geoPoint);
+							}
+							Geoloc firstGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
+							addStartLocation(firstGeo, true);
+							mapController.setZoom(15);
+						} else if (i == coordiantes.length() - 1) {
+							Geoloc lastGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
+							addStartLocation(lastGeo, false);
+						}
+
+						drawLine();
 					}
 				}
+
 			}
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
-
-		drawLine();
 	}
 
 	@Override
@@ -577,7 +583,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		marker.setPosition(geoPoint);
 		marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
 		marker.setRelatedObject(g);
-		//mapController.setCenter(geoPoint);
+		mapController.setCenter(geoPoint);
 		path.addPoint(geoPoint);
 
 		if(!isDeleting) {
