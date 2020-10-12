@@ -105,11 +105,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			if (intent.getAction().equals(SERVICE_REWIND)) {
-				if(currentIndex >= 2) {
-					currentIndex -= 2;
-				} else {
-					currentIndex = 0;
-				}
+				currentLocation.setLatitude(currentLocation.getLatitude() - latSign * latOffset * 2);
+				currentLocation.setLongitude(currentLocation.getLongitude() - longSign * longOffset * 2);
 			}
 		}
 	};
