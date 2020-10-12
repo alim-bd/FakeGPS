@@ -54,6 +54,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.Spinner;
@@ -95,6 +96,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private TextView tvLatitude;
 	private TextView tvLongitude;
 	private TextView tvDegree;
+	private TextView tvSpeed;
 
 	private double currentLat = 0.0f;
 	private double currentLong = 0.0f;
@@ -118,6 +120,8 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private Marker currentDeletingCameraLocation;
 
 	private String cameraFileName = "";
+
+	private int currentSpeed = 40;
 
 	public static final String LOCATION_RECEIVED = "me.hoen.android_mock_gps.LOCATION_RECEIVED";
 	protected BroadcastReceiver locationReceiver = new BroadcastReceiver() {
@@ -151,6 +155,37 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		btnSave = rootView.findViewById(R.id.btn_save);
 		btnDelete = rootView.findViewById(R.id.btn_delete);
 
+		speedSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+			@Override
+			public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+				int speed = 40;
+				switch(i) {
+					case 0:
+						speed = 40;
+						break;
+					case 1:
+						speed = 60;
+						break;
+					case 2:
+						speed = 100;
+						break;
+					case 3:
+						speed = 200;
+						break;
+					case 4:
+						speed = 400;
+						break;
+				}
+				currentSpeed = speed;
+				setSpeed(speed);
+			}
+
+			@Override
+			public void onNothingSelected(AdapterView<?> adapterView) {
+
+			}
+		});
+
 		btnAdd.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
@@ -175,6 +210,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		tvLatitude = rootView.findViewById(R.id.tv_latitude);
 		tvLongitude = rootView.findViewById(R.id.tv_longitude);
 		tvDegree = rootView.findViewById(R.id.tv_degree);
+		tvSpeed = rootView.findViewById(R.id.tv_speed);
 
 		btnPlay.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -587,8 +623,9 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		path.addPoint(geoPoint);
 
 		if(!isDeleting) {
-			tvLatitude.setText(String.format("%.6f", geoPoint.getLatitude()));
-			tvLongitude.setText(String.format("%.6f", geoPoint.getLongitude()));
+			tvLatitude.setText(String.format("%.3f", geoPoint.getLatitude()));
+			tvLongitude.setText(String.format("%.3f", geoPoint.getLongitude()));
+			tvSpeed.setText(String.valueOf(currentSpeed));
 			currentLat = geoPoint.getLatitude();
 			currentLong = geoPoint.getLongitude();
 			currentDegree = degree;
@@ -616,7 +653,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			if(degree >= 135 && degree < 180) {
 				currentDegreeText = "S";
 			}
-			tvDegree.setText(String.format("%.4f", degree));
+			tvDegree.setText(String.format("%.3f", degree));
 		}
 		//mapController.setZoom(12);
 	}
@@ -869,6 +906,12 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 
 	private void rewindLocation() {
 		Intent i = new Intent(MockLocationProvider.SERVICE_REWIND);
+		getActivity().sendBroadcast(i);
+	}
+
+	private void setSpeed(int speed) {
+		Intent i = new Intent(MockLocationProvider.SERVICE_SET_SPEED);
+		i.putExtra("speed", speed);
 		getActivity().sendBroadcast(i);
 	}
 }

@@ -116,6 +116,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 		public void onReceive(Context context, Intent intent) {
 			if (intent.getAction().equals(SERVICE_SET_SPEED)) {
 				speed = intent.getIntExtra("speed", 0);
+				calculateOffset();
 			}
 		}
 	};
@@ -319,6 +320,10 @@ public class MockLocationProvider extends Service implements LocationListener,
 				} else {
 					currentIndex = 0;
 					routeIndex++;
+					if(routeIndex >= data.size()) {
+						handler.removeCallbacksAndMessages(null);
+						return;
+					}
 					currentLocation.setLatitude(data.get(routeIndex).get(currentIndex).latitude);
 					currentLocation.setLongitude(data.get(routeIndex).get(currentIndex).longitude);
 					calculateOffset();
