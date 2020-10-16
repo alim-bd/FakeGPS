@@ -20,6 +20,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.Location;
 import android.location.LocationManager;
+import android.location.LocationProvider;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -60,7 +61,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 	private ArrayList<Location> pathPoints = new ArrayList<>();
 	private ArrayList<Double> bearingDegrees = new ArrayList<>();
 	private LocationManager locationManager;
-	private String mockLocationProvider = LocationManager.GPS_PROVIDER;
+	private String mockLocationProvider = "gps";
 
 	public static final int NOTIFICATION_ID = 42;
 
@@ -86,6 +87,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 	private float degree = 0;
 
 	private Location currentLocation = new Location("Point");
+	private ArrayList<Double> maxSpeeds = new ArrayList<>();
 
 	protected BroadcastReceiver stopServiceReceiver = new BroadcastReceiver() {
 		@Override
@@ -156,12 +158,16 @@ public class MockLocationProvider extends Service implements LocationListener,
 		registerReceiver(rewindServiceReceiver, new IntentFilter(SERVICE_REWIND));
 		registerReceiver(setSpeedServiceReceiver, new IntentFilter(SERVICE_SET_SPEED));
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-		/*if(locationManager.getProvider("gps") != null) {
+		try {
+			locationManager.addTestProvider("gps", false, false,
+					false, false, true, true, true, 0, 5);
+			locationManager.setTestProviderEnabled("gps", true);
+		} catch (Exception ex) {
 			locationManager.removeTestProvider("gps");
-		}*/
-		locationManager.addTestProvider("gps", false, false,
-				false, false, true, true, true, 0, 5);
-		locationManager.setTestProviderEnabled("gps", true);
+			locationManager.addTestProvider("gps", false, false,
+					false, false, true, true, true, 0, 5);
+			locationManager.setTestProviderEnabled("gps", true);
+		}
 	}
 
 	protected synchronized void buildGoogleApiClient() {
@@ -213,16 +219,34 @@ public class MockLocationProvider extends Service implements LocationListener,
 			JSONObject geoObject = new JSONObject(stringBuilder.toString());
 			JSONArray features = geoObject.getJSONArray("features");
 			if(features.length() > 0) {
+				maxSpeeds.clear();
 				for(int k = 0; k < features.length(); k++) {
 					JSONObject feature = features.getJSONObject(k);
 					JSONObject geometry = feature.getJSONObject("geometry");
-					JSONArray coordiantes = geometry.getJSONArray("coordinates");
+					JSONArray coordiantesParent = geometry.getJSONArray("coordinates");
+					String type = geometry.getString("type");
+					JSONObject properties = feature.getJSONObject("properties");
+					double maxSpeed = properties.getDouble("Max_Speed");
+					maxSpeeds.add(maxSpeed);
 					ArrayList<Geoloc> routePoints = new ArrayList<>();
-					for(int i = 0; i < coordiantes.length(); i++) {
-						JSONArray itemArray = new JSONArray(coordiantes.getString(i));
-						routePoints.add(new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 10, 5));
+					if(type.equals("MultiLineString")) {
+						for(int j = 0; j < coordiantesParent.length(); j++) {
+							JSONArray coordinates = coordiantesParent.getJSONArray(j);
+							for(int i = 0; i < coordinates.length(); i++) {
+								JSONArray itemArray = new JSONArray(coordinates.getString(i));
+								Log.v("Lat", String.valueOf(itemArray.getDouble(0)));
+								Log.v("Lat", String.valueOf(itemArray.getDouble(1)));
+								routePoints.add(new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 10, 5));
+							}
+							data.add(routePoints);
+						}
+					} else {
+						for(int i = 0; i < coordiantesParent.length(); i++) {
+							JSONArray itemArray = new JSONArray(coordiantesParent.getString(i));
+							routePoints.add(new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 10, 5));
+						}
+						data.add(routePoints);
 					}
-					data.add(routePoints);
 				}
 				routeIndex = 0;
 				currentIndex = 0;
@@ -274,6 +298,10 @@ public class MockLocationProvider extends Service implements LocationListener,
 		@Override
 		public void run() {
 			if(isPlaying) {
+				if(routeIndex >= data.size()) {
+					handler.removeCallbacksAndMessages(null);
+					return;
+				}
 				if(currentIndex < data.get(routeIndex).size() - 1) {
 					Geoloc endLocation = data.get(routeIndex).get(currentIndex + 1);
 					if(routeIndex == data.size()) {
@@ -335,6 +363,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 		Geoloc geo = new Geoloc(location.getLatitude(), location.getLongitude(), 5, 10);
 		locationReceivedIntent.putExtra("geoloc", geo);
 		locationReceivedIntent.putExtra("degree", degree);
+		locationReceivedIntent.putExtra("max_speed", maxSpeeds.get(routeIndex));
 		sendBroadcast(locationReceivedIntent);
 
 		currentLocation.setLatitude(currentLocation.getLatitude() + latSign * latOffset);
@@ -429,7 +458,9 @@ public class MockLocationProvider extends Service implements LocationListener,
 			@Override
 			protected void onPostExecute(String result) {
 				displayStartNotification();
-				handler.post(runnable);
+				if(data.size() > 0) {
+					handler.post(runnable);
+				}
 				super.onPostExecute(result);
 			}
 		}.execute("");
