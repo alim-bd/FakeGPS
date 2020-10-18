@@ -6,6 +6,8 @@
 	<string name="start_mock_gps_notification_message">Mock GPS running. Press here to stop</string>
 
     <array name="arr_speed">
+        <item>10 km/h</item>
+        <item>20 km/h</item>
         <item>40 km/h</item>
         <item>60 km/h</item>
         <item>100 km/h</item>

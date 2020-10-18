@@ -93,6 +93,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private ImageButton btnPlay;
 	private ImageButton btnStop;
 	private ImageButton btnRewind;
+	private ImageButton btnPrevious;
 
 	private boolean isPlaying = false;
 	private boolean isPause = false;
@@ -110,6 +111,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private Button btnAdd;
 	private Button btnSave;
 	private Button btnDelete;
+	private Button btnCancel;
 
 	private Spinner cameraSpinner;
 
@@ -128,7 +130,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private String folderName = "";
 	private String routeName = "";
 
-	private int currentSpeed = 40;
+	private int currentSpeed = 20;
 	private double currentMaxSpeed = 0;
 	private double currentHeading = 0 ;
 
@@ -163,29 +165,37 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		btnPlay = rootView.findViewById(R.id.start_mock_gps);
 		btnStop = rootView.findViewById(R.id.stop_mock_gps);
 		btnRewind = rootView.findViewById(R.id.rewind_mock_gps);
+		btnPrevious = rootView.findViewById(R.id.previous_mock_gps);
 
 		btnAdd = rootView.findViewById(R.id.btn_add);
 		btnSave = rootView.findViewById(R.id.btn_save);
 		btnDelete = rootView.findViewById(R.id.btn_delete);
+		btnCancel = rootView.findViewById(R.id.btn_cancel);
 
 		speedSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
 			@Override
 			public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-				int speed = 40;
+				int speed = 10;
 				switch(i) {
 					case 0:
-						speed = 40;
+						speed = 10;
 						break;
 					case 1:
-						speed = 60;
+						speed = 20;
 						break;
 					case 2:
-						speed = 100;
+						speed = 40;
 						break;
 					case 3:
-						speed = 200;
+						speed = 60;
 						break;
 					case 4:
+						speed = 100;
+						break;
+					case 5:
+						speed = 200;
+						break;
+					case 6:
 						speed = 400;
 						break;
 				}
@@ -220,6 +230,17 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			}
 		});
 
+		btnCancel.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				btnAdd.setVisibility(View.VISIBLE);
+				btnSave.setVisibility(View.VISIBLE);
+				btnDelete.setVisibility(View.GONE);
+				btnCancel.setVisibility(View.GONE);
+				isDeleting = false;
+			}
+		});
+
 		tvLatitude = rootView.findViewById(R.id.tv_latitude);
 		tvLongitude = rootView.findViewById(R.id.tv_longitude);
 		tvDegree = rootView.findViewById(R.id.tv_degree);
@@ -243,6 +264,13 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 						btnPlay.setImageResource(R.drawable.ic_pause);
 					}
 				}
+			}
+		});
+
+		btnPrevious.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				previousMockLocation();
 			}
 		});
 
@@ -285,13 +313,17 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 
 		MyLocationNewOverlay myLocationNewOverlay = new MyLocationNewOverlay(mapView);
 		myLocationNewOverlay.enableMyLocation();
+		Bitmap bitmap = null;
+		BitmapDrawable bitmapDrawable = (BitmapDrawable)getResources().getDrawable(R.drawable.ic_current);
+		bitmap = bitmapDrawable.getBitmap();
+		myLocationNewOverlay.setDirectionArrow(bitmap, bitmap);
 		mapView.getOverlays().add(myLocationNewOverlay);
 
 		Paint paint = path.getPaint();
 		paint.setStrokeWidth(20);
 		path.setPaint(paint);
 		mapController = mapView.getController();
-		mapController.setZoom(12);
+		mapController.setZoom(15);
 
 		btnOpenCamera.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -361,9 +393,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 					String cameraId = properties.getString("Camera_ID");
 					currentCameraIndex = Integer.valueOf(cameraId.split("_")[1]);
 					int speed = properties.getInt("Speed");
-					JSONArray itemArray = new JSONArray(coordiantes.getString(0));
-					GeoPoint geoPoint = new GeoPoint(itemArray.getDouble(1), itemArray.getDouble(0));
-					CameraLocation cameraLocation = new CameraLocation(degree, speed, itemArray.getDouble(1), itemArray.getDouble(0), cameraId);
+					CameraLocation cameraLocation = new CameraLocation(degree, speed, coordiantes.getDouble(1), coordiantes.getDouble(0), cameraId);
 					cameraLocations.add(cameraLocation);
 				}
 
@@ -431,12 +461,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 									if(j ==0 ) {
 										mapController.setCenter(geoPoint);
 									}
-									Geoloc firstGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
-									addStartLocation(firstGeo, true);
-									mapController.setZoom(15);
-								} else if (i == coordinates.length() - 1) {
-									Geoloc lastGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
-									addStartLocation(lastGeo, false);
+									mapController.setZoom(18);
 								}
 
 								drawLine();
@@ -453,12 +478,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 								if(j ==0 ) {
 									mapController.setCenter(geoPoint);
 								}
-								Geoloc firstGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
-								addStartLocation(firstGeo, true);
-								mapController.setZoom(15);
-							} else if (i == coordiantesParent.length() - 1) {
-								Geoloc lastGeo = new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 5, 10);
-								addStartLocation(lastGeo, false);
+								mapController.setZoom(18);
 							}
 
 							drawLine();
@@ -518,14 +538,14 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		}
 	}
 
-	@Override
+	/*@Override
 	public void onDestroy() {
-		getActivity().sendBroadcast(new Intent("GP_PROVIDER_STOP_SERVICE"));
+		//getActivity().sendBroadcast(new Intent("GP_PROVIDER_STOP_SERVICE"));
 		if (locationManager != null) {
 			locationManager.removeUpdates(this);
 		}
 		super.onDestroy();
-	}
+	}*/
 
 	@Override
 	public void onPause() {
@@ -614,7 +634,6 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 
 	private void addCameraLocation() {
 		GeoPoint geoPoint = new GeoPoint(currentLat, currentLong);
-		int currentSpeed = (cameraSpinner.getSelectedItemPosition() + 3) * 10;
 		CameraLocation cameraLocation = new CameraLocation(currentDegree, (int) currentMaxSpeed, currentLat, currentLong, routeName + "_" + (currentCameraIndex + 1));
 		cameraLocations.add(cameraLocation);
 
@@ -650,6 +669,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 				btnAdd.setVisibility(View.GONE);
 				btnSave.setVisibility(View.GONE);
 				btnDelete.setVisibility(View.VISIBLE);
+				btnCancel.setVisibility(View.VISIBLE);
 
 				tvLatitude.setText(String.format("%.6f", cameraLocation.getLatitude()));
 				tvLongitude.setText(String.format("%.6f", cameraLocation.getLongitude()));
@@ -685,6 +705,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 					btnAdd.setVisibility(View.GONE);
 					btnSave.setVisibility(View.GONE);
 					btnDelete.setVisibility(View.VISIBLE);
+					btnCancel.setVisibility(View.VISIBLE);
 
 					tvLatitude.setText(String.format("%.6f", cameraLocation.getLatitude()));
 					tvLongitude.setText(String.format("%.6f", cameraLocation.getLongitude()));
@@ -777,14 +798,12 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 					featureProperty.put("Speed", item.getSpeed());
 					featureObject.put("properties", featureProperty);
 
-					JSONArray coordinatesArray = new JSONArray();
 					JSONArray coordinate = new JSONArray();
 					coordinate.put(item.getLongitude());
 					coordinate.put(item.getLatitude());
-					coordinatesArray.put(coordinate);
 					JSONObject geometryJson = new JSONObject();
 					geometryJson.put("type", "Point");
-					geometryJson.put("coordinates", coordinatesArray);
+					geometryJson.put("coordinates", coordinate);
 					featureObject.put("geometry", geometryJson);
 					features.put(featureObject);
 					currentCameraIndex++;
@@ -817,14 +836,12 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 					featureProperty.put("Speed", item.getSpeed());
 					featureObject.put("properties", featureProperty);
 
-					JSONArray coordinatesArray = new JSONArray();
 					JSONArray coordinate = new JSONArray();
 					coordinate.put(item.getLongitude());
 					coordinate.put(item.getLatitude());
-					coordinatesArray.put(coordinate);
 					JSONObject geometryJson = new JSONObject();
 					geometryJson.put("type", "Point");
-					geometryJson.put("coordinates", coordinatesArray);
+					geometryJson.put("coordinates", coordinate);
 					featureObject.put("geometry", geometryJson);
 					featuresArray.put(featureObject);
 					currentCameraIndex++;
@@ -862,6 +879,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		currentDeletingCameraLocation.remove(mapView);
 		isDeleting = false;
 		btnDelete.setVisibility(View.GONE);
+		btnCancel.setVisibility(View.GONE);
 		btnAdd.setVisibility(View.VISIBLE);
 		btnSave.setVisibility(View.VISIBLE);
 		for(int i = 0; i < cameraLocations.size(); i++) {
@@ -875,8 +893,8 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private void drawLine() {
 		Polyline line = new Polyline(mapView);
 		//line.setSubDescription(Polyline.class.getCanonicalName());
-		line.setWidth(10f);
-		line.setColor(getResources().getColor(R.color.wallet_holo_blue_light));
+		line.setWidth(6f);
+		line.setColor(getResources().getColor(R.color.colorPrimary));
 		line.setPoints(pts);
 		line.setGeodesic(true);
 		line.setOnClickListener(new Polyline.OnClickListener() {
@@ -895,21 +913,27 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private void startMockLocation() {
 		if(!routeFilePath.isEmpty()) {
 			int position = speedSpinner.getSelectedItemPosition();
-			int speed = 40;
+			int speed = 10;
 			switch(position) {
 				case 0:
-					speed = 40;
+					speed = 10;
 					break;
 				case 1:
-					speed = 60;
+					speed = 20;
 					break;
 				case 2:
-					speed = 100;
+					speed = 40;
 					break;
 				case 3:
-					speed = 200;
+					speed = 60;
 					break;
 				case 4:
+					speed = 100;
+					break;
+				case 5:
+					speed = 200;
+					break;
+				case 6:
 					speed = 400;
 					break;
 			}
@@ -924,6 +948,11 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		Intent i = new Intent(MockLocationProvider.SERVICE_PAUSE);
 		getActivity().sendBroadcast(i);
 		isPause = true;
+	}
+
+	private void previousMockLocation() {
+		Intent i = new Intent(MockLocationProvider.PREVIOUS_ROAD);
+		getActivity().sendBroadcast(i);
 	}
 
 	private void resumeMockLocation() {

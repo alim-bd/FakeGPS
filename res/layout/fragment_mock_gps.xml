@@ -1,4 +1,5 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical" >
@@ -11,6 +12,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
             <Button
                 android:id="@+id/btn_open_route"
@@ -49,6 +51,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:src="@drawable/ic_rewind"
+                android:padding="8dp"
+                android:layout_marginLeft="16dp"
+                android:background="@drawable/round_button" />
+            <ImageButton
+                android:id="@+id/previous_mock_gps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_previous"
                 android:padding="8dp"
                 android:layout_marginLeft="16dp"
                 android:background="@drawable/round_button" />
@@ -143,25 +153,34 @@
                     android:entries="@array/arr_camera_speed"/>
                 <Button
                     android:id="@+id/btn_add"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="16dp"
+                    android:layout_weight="0.5"
                     android:text="ADD"/>
 
                 <Button
                     android:id="@+id/btn_save"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginLeft="16dp"
+                    android:layout_weight="0.5"
                     android:text="SAVE"/>
 
                 <Button
                     android:id="@+id/btn_delete"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="16dp"
+                    android:layout_weight="0.5"
                     android:visibility="gone"
                     android:text="Delete"/>
+
+                <Button
+                    android:id="@+id/btn_cancel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="0.5"
+                    android:visibility="gone"
+                    android:text="Cancel"/>
             </LinearLayout>
 
         </LinearLayout>

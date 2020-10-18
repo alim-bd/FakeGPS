@@ -70,6 +70,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 	public static final String SERVICE_PLAY = "me.hoen.android_mock_gps.PLAY";
 	public static final String SERVICE_REWIND = "me.hoen.android_mock_gps.REWIND";
 	public static final String SERVICE_SET_SPEED = "me.hoen.android_mock_gps.SETSPEED";
+	public static final String PREVIOUS_ROAD = "me.hoen.android_mock_gps.PREVIOUS";
 
 	private String filename = "";
 	private int speed = 40;		//km/h
@@ -143,6 +144,22 @@ public class MockLocationProvider extends Service implements LocationListener,
 		}
 	};
 
+	protected BroadcastReceiver previousRoadReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if (intent.getAction().equals(PREVIOUS_ROAD)) {
+				routeIndex--;
+				currentIndex = 0;
+				if(routeIndex < 0) {
+					routeIndex = 0;
+				}
+				currentLocation.setLatitude(data.get(routeIndex).get(currentIndex).latitude);
+				currentLocation.setLongitude(data.get(routeIndex).get(currentIndex).longitude);
+				calculateOffset();
+			}
+		}
+	};
+
 	@SuppressLint("NewApi")
 	@Override
 	public void onCreate() {
@@ -157,6 +174,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 		registerReceiver(playServiceReceiver, new IntentFilter(SERVICE_PLAY));
 		registerReceiver(rewindServiceReceiver, new IntentFilter(SERVICE_REWIND));
 		registerReceiver(setSpeedServiceReceiver, new IntentFilter(SERVICE_SET_SPEED));
+		registerReceiver(previousRoadReceiver, new IntentFilter(PREVIOUS_ROAD));
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		try {
 			locationManager.addTestProvider("gps", false, false,
@@ -227,7 +245,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 					String type = geometry.getString("type");
 					JSONObject properties = feature.getJSONObject("properties");
 					double maxSpeed = properties.getDouble("Max_Speed");
-					maxSpeeds.add(maxSpeed);
+
 					ArrayList<Geoloc> routePoints = new ArrayList<>();
 					if(type.equals("MultiLineString")) {
 						for(int j = 0; j < coordiantesParent.length(); j++) {
@@ -239,12 +257,14 @@ public class MockLocationProvider extends Service implements LocationListener,
 								routePoints.add(new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 10, 5));
 							}
 							data.add(routePoints);
+							maxSpeeds.add(maxSpeed);
 						}
 					} else {
 						for(int i = 0; i < coordiantesParent.length(); i++) {
 							JSONArray itemArray = new JSONArray(coordiantesParent.getString(i));
 							routePoints.add(new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 10, 5));
 						}
+						maxSpeeds.add(maxSpeed);
 						data.add(routePoints);
 					}
 				}
@@ -267,7 +287,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 			Geoloc endLocation = data.get(routeIndex).get(currentIndex + 1);
 			degree = calculateBearingDegree(startLocation.latitude, startLocation.longitude, endLocation.latitude, endLocation.longitude);
 			double distance = calculateDistance(startLocation.latitude, startLocation.longitude, endLocation.latitude, endLocation.longitude);
-			double speedPerSec = speed * 1000 / 3600.0f;
+			double speedPerSec = speed * 1000 / 3600.0f / 10;
 			Log.v("Speed Per Sec", String.valueOf(speedPerSec));
 			int totalTime = (int)(Math.ceil(distance / speedPerSec));
 			Log.v("Time", String.valueOf(totalTime));
@@ -336,7 +356,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 				}
 
 				sendLocation();
-				handler.postDelayed(runnable, 1000);
+				handler.postDelayed(runnable, 100);
 			}
 		}
 	};
@@ -351,7 +371,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 		location.setAltitude(0);
 		location.setAccuracy(5);
 		location.setBearing(degree);
-		location.setSpeed(g.getSpeed());
+		float speedPerSec = speed * 1000 / 3600.0f;
+		location.setSpeed(speedPerSec);
 		location.setTime(System.currentTimeMillis());
 		if (android.os.Build.VERSION.SDK_INT >= 17) {
 			location.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
@@ -397,21 +418,24 @@ public class MockLocationProvider extends Service implements LocationListener,
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		filename = intent.getStringExtra("file_name");
 		speed = intent.getIntExtra("speed", 40);
-		return super.onStartCommand(intent, flags, startId);
+		return START_STICKY;
 	}
 
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
+		Log.v("Broadcast", "Paused");
 		unregisterReceiver(stopServiceReceiver);
 		unregisterReceiver(playServiceReceiver);
 		unregisterReceiver(pauseServiceReceiver);
 		unregisterReceiver(rewindServiceReceiver);
 		unregisterReceiver(setSpeedServiceReceiver);
+		unregisterReceiver(previousRoadReceiver);
 	}
 
 	@Override
 	public IBinder onBind(Intent intent) {
+		Log.v("Broadcast", "Binded");
 		return null;
 	}
 

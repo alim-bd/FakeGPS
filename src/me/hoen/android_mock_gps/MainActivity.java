@@ -41,17 +41,6 @@ public class MainActivity extends AppCompatActivity {
 		FragmentManager fragmentManager = getSupportFragmentManager();
 		fragmentManager.beginTransaction().add(android.R.id.content, f, "home")
 				.commit();
-		fragmentManager.executePendingTransactions();
-
-		Bundle extras = getIntent().getExtras();
-		if (extras != null && extras.containsKey("performAction")
-				&& extras.getString("performAction").equals("stopMockGps")) {
-			Intent i = new Intent(MockLocationProvider.SERVICE_STOP);
-			sendBroadcast(i);
-			NotificationManager notificationManager = (NotificationManager) this
-					.getSystemService(Context.NOTIFICATION_SERVICE);
-			notificationManager.cancel(MockLocationProvider.NOTIFICATION_ID);
-		}
 	}
 
 	@Override
