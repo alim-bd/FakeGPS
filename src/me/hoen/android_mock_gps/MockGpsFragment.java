@@ -60,6 +60,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -94,6 +95,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private ImageButton btnStop;
 	private ImageButton btnRewind;
 	private ImageButton btnPrevious;
+	private ImageButton btnNext;
 
 	private boolean isPlaying = false;
 	private boolean isPause = false;
@@ -102,6 +104,8 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private TextView tvLongitude;
 	private TextView tvDegree;
 	private TextView tvSpeed;
+	private TextView tvRouteCount;
+	private TextView tvCurrentRoute;
 
 	private double currentLat = 0.0f;
 	private double currentLong = 0.0f;
@@ -112,6 +116,9 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private Button btnSave;
 	private Button btnDelete;
 	private Button btnCancel;
+	private Button btnMove;
+
+	private EditText edtRouteNumber;
 
 	private Spinner cameraSpinner;
 
@@ -135,6 +142,10 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private double currentHeading = 0 ;
 
 	private boolean isFirst = false;
+	private int routeCount = 0;
+	private int currentRoute = 0;
+
+	private ArrayList<Marker> cameraPoints = new ArrayList<>();
 
 	public static final String LOCATION_RECEIVED = "me.hoen.android_mock_gps.LOCATION_RECEIVED";
 	protected BroadcastReceiver locationReceiver = new BroadcastReceiver() {
@@ -145,6 +156,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 				float degree = intent.getFloatExtra("degree", 0);
 				currentMaxSpeed = intent.getDoubleExtra("max_speed", 0);
 				currentHeading = intent.getDoubleExtra("heading", 0);
+				currentRoute = intent.getIntExtra("route_number", 0);
 				receiveLocation(g, degree);
 			}
 		}
@@ -166,11 +178,18 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		btnStop = rootView.findViewById(R.id.stop_mock_gps);
 		btnRewind = rootView.findViewById(R.id.rewind_mock_gps);
 		btnPrevious = rootView.findViewById(R.id.previous_mock_gps);
+		btnNext = rootView.findViewById(R.id.next_mock_gps);
 
 		btnAdd = rootView.findViewById(R.id.btn_add);
 		btnSave = rootView.findViewById(R.id.btn_save);
 		btnDelete = rootView.findViewById(R.id.btn_delete);
 		btnCancel = rootView.findViewById(R.id.btn_cancel);
+		btnMove = rootView.findViewById(R.id.btn_move);
+
+		edtRouteNumber = rootView.findViewById(R.id.edt_route_number);
+
+		tvRouteCount = rootView.findViewById(R.id.tv_route_count);
+		tvCurrentRoute = rootView.findViewById(R.id.tv_current_route);
 
 		speedSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
 			@Override
@@ -274,6 +293,20 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			}
 		});
 
+		btnNext.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				nextMockLocation();
+			}
+		});
+
+		btnMove.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				moveRoad();
+			}
+		});
+
 		btnStop.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
@@ -346,6 +379,16 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		return rootView;
 	}
 
+	private void deleteCameraPoints() {
+		for(int i = 0; i < cameraPoints.size(); i++) {
+			Log.v("CAMERA ID", cameraPoints.get(i).getId());
+			cameraPoints.get(i).remove(mapView);
+		}
+		cameraLocations.clear();
+		cameraPoints.clear();
+		currentCameraIndex = 0;
+	}
+
 	private void openCamera(Uri returnUri, File pathFile) {
 		String fileName = "";
 		if(Build.VERSION.SDK_INT <= 28) {
@@ -353,6 +396,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		} else {
 			fileName = cameraFileName;
 		}
+		deleteCameraPoints();
 		btnOpenCamera.setText(fileName);
 		//btnOpenCamera.setText(fileName);
 		StringBuilder stringBuilder = new StringBuilder();
@@ -388,7 +432,13 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 					JSONObject geometry = feature.getJSONObject("geometry");
 					JSONArray coordiantes = geometry.getJSONArray("coordinates");
 					JSONObject properties = feature.getJSONObject("properties");
-					double degree = properties.getDouble("Angle");
+					double degree = 0;
+					try {
+						degree = properties.getDouble("Angle");
+					} catch (JSONException ex) {
+						degree = 0;
+					}
+
 					//String angle = properties.getString("Angle");
 					String cameraId = properties.getString("Camera_ID");
 					currentCameraIndex = Integer.valueOf(cameraId.split("_")[1]);
@@ -405,14 +455,26 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	}
 
 	private void openRoute(Uri returnUri, File pathFile) {
+		routeCount = 0;
 		String fileName = "";
 		if(Build.VERSION.SDK_INT <= 28) {
 			fileName = DocumentsContract.getDocumentId(returnUri).split(":")[1];
 		} else {
 			fileName = routeFileName;
 		}
+		deleteCameraPoints();
+		mapView.getOverlays().clear();
 		btnSelectRoute.setText(fileName);
 		routeFilePath = returnUri.toString();
+
+		MyLocationNewOverlay myLocationNewOverlay = new MyLocationNewOverlay(mapView);
+		myLocationNewOverlay.enableMyLocation();
+		Bitmap bitmap = null;
+		BitmapDrawable bitmapDrawable = (BitmapDrawable)getResources().getDrawable(R.drawable.ic_current);
+		bitmap = bitmapDrawable.getBitmap();
+		myLocationNewOverlay.setDirectionArrow(bitmap, bitmap);
+		mapView.getOverlays().add(myLocationNewOverlay);
+
 		Log.v("Route File Path", routeFilePath);
 		StringBuilder stringBuilder = new StringBuilder();
 		InputStream is = null;
@@ -464,8 +526,10 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 									mapController.setZoom(18);
 								}
 
-								drawLine();
+
 							}
+							drawLine();
+							routeCount++;
 						}
 					} else {
 						for(int i = 0; i < coordiantesParent.length(); i++) {
@@ -481,8 +545,9 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 								mapController.setZoom(18);
 							}
 
-							drawLine();
 						}
+						routeCount++;
+						drawLine();
 					}
 				}
 
@@ -490,6 +555,8 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
+
+		tvRouteCount.setText(String.valueOf(routeCount));
 	}
 
 	private String getFileNamefromURI(Uri uri) {
@@ -643,6 +710,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		marker.setId(cameraLocation.getCameraID());
 		marker.setIcon(getResources().getDrawable(R.drawable.ic_arrow));
 		marker.setRotation((float) (360 - currentDegree));
+		cameraPoints.add(marker);
 		/*Marker cameraMarker = new Marker(mapView);
 		cameraMarker.setPosition(geoPoint);
 		if(currentDegree > 0) {
@@ -690,10 +758,15 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			marker.setPosition(geoPoint);
 			marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
 			marker.setId(cameraLocation.getCameraID());
-			marker.setIcon(getResources().getDrawable(R.drawable.ic_arrow));
-			marker.setRotation((float) (360 - cameraLocation.getDegree()));
+			if(cameraLocation.getDegree() == 0) {
+				marker.setIcon(getResources().getDrawable(R.drawable.ic_red_dot));
+			} else {
+				marker.setIcon(getResources().getDrawable(R.drawable.ic_arrow));
+				marker.setRotation((float) (360 - cameraLocation.getDegree()));
+			}
 			mapView.getOverlays().add(marker);
 			path.addPoint(geoPoint);
+			cameraPoints.add(marker);
 
 			marker.setOnMarkerClickListener(new Marker.OnMarkerClickListener() {
 				@Override
@@ -748,7 +821,45 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		File file = new File(FileUtil.getStoragePath(getActivity(), false) + "/" + folderName, fileName);
 		JSONObject geoJson = new JSONObject();
 		String outputString = "";
-		if(file.exists()) {
+		if(!cameraFileName.isEmpty() || !file.exists()) {
+			try {
+				geoJson.put("type", "FeatureCollection");
+				geoJson.put("name", "camera_data");
+				JSONObject crsJson = new JSONObject();
+				crsJson.put("type", "name");
+				JSONObject crsPropertyJson = new JSONObject();
+				crsPropertyJson.put("name", "urn:ogc:def:crs:OGC:1.3:CRS84");
+				crsJson.put("properties", crsPropertyJson);
+				geoJson.put("crs", crsJson);
+				JSONArray featuresArray = new JSONArray();
+				for(int i = 0; i < cameraLocations.size(); i++) {
+					CameraLocation item = cameraLocations.get(i);
+					JSONObject featureObject = new JSONObject();
+					featureObject.put("type", "Feature");
+					JSONObject featureProperty = new JSONObject();
+					//String roadId = item.getCameraID().split("_")[0];
+					featureProperty.put("Camera_ID", item.getCameraID());
+					featureProperty.put("Angle", item.getDegree());
+					featureProperty.put("Speed", item.getSpeed());
+					featureObject.put("properties", featureProperty);
+
+					JSONArray coordinate = new JSONArray();
+					coordinate.put(item.getLongitude());
+					coordinate.put(item.getLatitude());
+					JSONObject geometryJson = new JSONObject();
+					geometryJson.put("type", "Point");
+					geometryJson.put("coordinates", coordinate);
+					Log.v("Geometry", geometryJson.toString());
+					featureObject.put("geometry", geometryJson);
+					featuresArray.put(featureObject);
+				}
+				geoJson.put("features", featuresArray);
+
+				outputString = geoJson.toString();
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		} else if(file.exists()) {
 			StringBuilder stringBuilder = new StringBuilder();
 			String UTF8 = "utf8";
 			int BUFFER_SIZE = 8192;
@@ -813,45 +924,6 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			} catch (JSONException e) {
 				e.printStackTrace();
 			}
-		} else {
-			currentCameraIndex++;
-			try {
-				geoJson.put("type", "FeatureCollection");
-				geoJson.put("name", "camera_data");
-				JSONObject crsJson = new JSONObject();
-				crsJson.put("type", "name");
-				JSONObject crsPropertyJson = new JSONObject();
-				crsPropertyJson.put("name", "urn:ogc:def:crs:OGC:1.3:CRS84");
-				crsJson.put("properties", crsPropertyJson);
-				geoJson.put("crs", crsJson);
-				JSONArray featuresArray = new JSONArray();
-				for(int i = 0; i < cameraLocations.size(); i++) {
-					CameraLocation item = cameraLocations.get(i);
-					JSONObject featureObject = new JSONObject();
-					featureObject.put("type", "Feature");
-					JSONObject featureProperty = new JSONObject();
-					//String roadId = item.getCameraID().split("_")[0];
-					featureProperty.put("Camera_ID", item.getCameraID());
-					featureProperty.put("Angle", item.getDegree());
-					featureProperty.put("Speed", item.getSpeed());
-					featureObject.put("properties", featureProperty);
-
-					JSONArray coordinate = new JSONArray();
-					coordinate.put(item.getLongitude());
-					coordinate.put(item.getLatitude());
-					JSONObject geometryJson = new JSONObject();
-					geometryJson.put("type", "Point");
-					geometryJson.put("coordinates", coordinate);
-					featureObject.put("geometry", geometryJson);
-					featuresArray.put(featureObject);
-					currentCameraIndex++;
-				}
-				geoJson.put("features", featuresArray);
-
-				outputString = geoJson.toString();
-			} catch (JSONException e) {
-				e.printStackTrace();
-			}
 		}
 
 
@@ -885,7 +957,13 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		for(int i = 0; i < cameraLocations.size(); i++) {
 			if(cameraLocations.get(i).getCameraID().equals(currentDeletingCameraLocation.getId())) {
 				cameraLocations.remove(i);
-				return;
+				break;
+			}
+		}
+		for(int i = 0; i < cameraPoints.size(); i++) {
+			if(cameraPoints.get(i).getId().equals(currentDeletingCameraLocation.getId())) {
+				cameraPoints.remove(i);
+				break;
 			}
 		}
 	}
@@ -908,6 +986,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 
 	protected void receiveLocation(Geoloc g, float degree) {
 		addMarker(g, degree);
+		tvCurrentRoute.setText(String.valueOf(currentRoute + 1));
 	}
 
 	private void startMockLocation() {
@@ -953,6 +1032,20 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private void previousMockLocation() {
 		Intent i = new Intent(MockLocationProvider.PREVIOUS_ROAD);
 		getActivity().sendBroadcast(i);
+	}
+
+	private void nextMockLocation() {
+		Intent i = new Intent(MockLocationProvider.NEXT_ROAD);
+		getActivity().sendBroadcast(i);
+	}
+
+	private void moveRoad() {
+		if(!edtRouteNumber.getText().toString().isEmpty()) {
+			Intent i = new Intent(MockLocationProvider.MOVE_ROAD);
+			int routeNumber = Integer.valueOf(edtRouteNumber.getText().toString());
+			i.putExtra("route", routeNumber);
+			getActivity().sendBroadcast(i);
+		}
 	}
 
 	private void resumeMockLocation() {

@@ -71,6 +71,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 	public static final String SERVICE_REWIND = "me.hoen.android_mock_gps.REWIND";
 	public static final String SERVICE_SET_SPEED = "me.hoen.android_mock_gps.SETSPEED";
 	public static final String PREVIOUS_ROAD = "me.hoen.android_mock_gps.PREVIOUS";
+	public static final String MOVE_ROAD = "me.hoen.android_mock_gps.MOVE";
+	public static final String NEXT_ROAD = "me.hoen.android_mock_gps.NEXT";
 
 	private String filename = "";
 	private int speed = 40;		//km/h
@@ -106,8 +108,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			if (intent.getAction().equals(SERVICE_REWIND)) {
-				currentLocation.setLatitude(currentLocation.getLatitude() - latSign * latOffset * 2);
-				currentLocation.setLongitude(currentLocation.getLongitude() - longSign * longOffset * 2);
+				currentLocation.setLatitude(currentLocation.getLatitude() - latSign * latOffset * 20);
+				currentLocation.setLongitude(currentLocation.getLongitude() - longSign * longOffset * 20);
 			}
 		}
 	};
@@ -160,6 +162,36 @@ public class MockLocationProvider extends Service implements LocationListener,
 		}
 	};
 
+	protected BroadcastReceiver nextRoadReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if (intent.getAction().equals(NEXT_ROAD)) {
+				routeIndex++;
+				currentIndex = 0;
+				if(routeIndex >= data.size() - 1) {
+					routeIndex = data.size() - 1;
+				}
+				currentLocation.setLatitude(data.get(routeIndex).get(currentIndex).latitude);
+				currentLocation.setLongitude(data.get(routeIndex).get(currentIndex).longitude);
+				calculateOffset();
+			}
+		}
+	};
+
+	protected BroadcastReceiver moveRoadReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if (intent.getAction().equals(MOVE_ROAD)) {
+				int route = intent.getIntExtra("route", 1);
+				routeIndex = route - 1;
+				currentIndex = 0;
+				currentLocation.setLatitude(data.get(routeIndex).get(currentIndex).latitude);
+				currentLocation.setLongitude(data.get(routeIndex).get(currentIndex).longitude);
+				calculateOffset();
+			}
+		}
+	};
+
 	@SuppressLint("NewApi")
 	@Override
 	public void onCreate() {
@@ -175,6 +207,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 		registerReceiver(rewindServiceReceiver, new IntentFilter(SERVICE_REWIND));
 		registerReceiver(setSpeedServiceReceiver, new IntentFilter(SERVICE_SET_SPEED));
 		registerReceiver(previousRoadReceiver, new IntentFilter(PREVIOUS_ROAD));
+		registerReceiver(moveRoadReceiver, new IntentFilter(MOVE_ROAD));
+		registerReceiver(nextRoadReceiver, new IntentFilter(NEXT_ROAD));
 		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		try {
 			locationManager.addTestProvider("gps", false, false,
@@ -385,6 +419,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 		locationReceivedIntent.putExtra("geoloc", geo);
 		locationReceivedIntent.putExtra("degree", degree);
 		locationReceivedIntent.putExtra("max_speed", maxSpeeds.get(routeIndex));
+		locationReceivedIntent.putExtra("route_number", routeIndex);
 		sendBroadcast(locationReceivedIntent);
 
 		currentLocation.setLatitude(currentLocation.getLatitude() + latSign * latOffset);
@@ -431,6 +466,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 		unregisterReceiver(rewindServiceReceiver);
 		unregisterReceiver(setSpeedServiceReceiver);
 		unregisterReceiver(previousRoadReceiver);
+		unregisterReceiver(moveRoadReceiver);
+		unregisterReceiver(nextRoadReceiver);
 	}
 
 	@Override
