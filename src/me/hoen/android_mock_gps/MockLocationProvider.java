@@ -92,6 +92,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 	private Location currentLocation = new Location("Point");
 	private ArrayList<Double> maxSpeeds = new ArrayList<>();
 	private ArrayList<Integer> lanes = new ArrayList<>();
+	private ArrayList<String> roads = new ArrayList<>();
 
 	protected BroadcastReceiver stopServiceReceiver = new BroadcastReceiver() {
 		@Override
@@ -248,6 +249,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 		data.clear();
 		pathPoints.clear();
 		bearingDegrees.clear();
+		roads.clear();
 		try {
 			is = getContentResolver().openInputStream(Uri.parse(filename));
 			String string = "";
@@ -282,7 +284,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 					JSONObject properties = feature.getJSONObject("properties");
 					double maxSpeed = properties.getDouble("Max_Speed");
 					int lane = properties.getInt("LANES");
-
+					String roadname = properties.getString("ROAD_NAME");
 
 					ArrayList<Geoloc> routePoints = new ArrayList<>();
 					if(type.equals("MultiLineString")) {
@@ -297,6 +299,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 							data.add(routePoints);
 							lanes.add(lane);
 							maxSpeeds.add(maxSpeed);
+							roads.add(roadname);
 						}
 					} else {
 						for(int i = 0; i < coordiantesParent.length(); i++) {
@@ -306,6 +309,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 						maxSpeeds.add(maxSpeed);
 						lanes.add(lane);
 						data.add(routePoints);
+						roads.add(roadname);
 					}
 				}
 				routeIndex = 0;
@@ -427,6 +431,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 		locationReceivedIntent.putExtra("lanes", lanes.get(routeIndex));
 		locationReceivedIntent.putExtra("max_speed", maxSpeeds.get(routeIndex));
 		locationReceivedIntent.putExtra("route_number", routeIndex);
+		locationReceivedIntent.putExtra("road_name", roads.get(routeIndex));
 		sendBroadcast(locationReceivedIntent);
 
 		currentLocation.setLatitude(currentLocation.getLatitude() + latSign * latOffset);

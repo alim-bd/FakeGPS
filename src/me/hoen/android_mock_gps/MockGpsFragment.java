@@ -107,11 +107,13 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private TextView tvRouteCount;
 	private TextView tvCurrentRoute;
 	private TextView tvLanes;
+	private TextView tvRoadname;
 
 	private double currentLat = 0.0f;
 	private double currentLong = 0.0f;
 	private double currentDegree = 0.0f;
 	private String currentDegreeText = "N";
+	private String currentRoad = "";
 
 	private Button btnAdd;
 	private Button btnSave;
@@ -160,6 +162,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 				currentHeading = intent.getDoubleExtra("heading", 0);
 				currentRoute = intent.getIntExtra("route_number", 0);
 				currentLane = intent.getIntExtra("lanes", 0);
+				currentRoad = intent.getStringExtra("road_name");
 				receiveLocation(g, degree);
 			}
 		}
@@ -194,6 +197,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 		tvRouteCount = rootView.findViewById(R.id.tv_route_count);
 		tvCurrentRoute = rootView.findViewById(R.id.tv_current_route);
 		tvLanes = rootView.findViewById(R.id.tv_lane);
+		tvRoadname = rootView.findViewById(R.id.tv_roadname);
 
 		speedSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
 			@Override
@@ -678,6 +682,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			tvLongitude.setText(String.format("%.6f", geoPoint.getLongitude()));
 			tvSpeed.setText(String.valueOf(currentMaxSpeed));
 			tvLanes.setText(String.valueOf(currentLane));
+			tvRoadname.setText(currentRoad);
 			currentLat = geoPoint.getLatitude();
 			currentLong = geoPoint.getLongitude();
 			currentDegree = degree;
@@ -705,7 +710,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			if(degree >= 135 && degree < 180) {
 				currentDegreeText = "S";
 			}
-			tvDegree.setText(String.format("%.6f", degree));
+			tvDegree.setText(String.format("%.0f", degree));
 		}
 		//mapController.setZoom(12);
 	}
