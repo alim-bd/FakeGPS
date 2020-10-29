@@ -91,6 +91,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 
 	private Location currentLocation = new Location("Point");
 	private ArrayList<Double> maxSpeeds = new ArrayList<>();
+	private ArrayList<Integer> lanes = new ArrayList<>();
 
 	protected BroadcastReceiver stopServiceReceiver = new BroadcastReceiver() {
 		@Override
@@ -272,6 +273,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 			JSONArray features = geoObject.getJSONArray("features");
 			if(features.length() > 0) {
 				maxSpeeds.clear();
+				lanes.clear();
 				for(int k = 0; k < features.length(); k++) {
 					JSONObject feature = features.getJSONObject(k);
 					JSONObject geometry = feature.getJSONObject("geometry");
@@ -279,6 +281,8 @@ public class MockLocationProvider extends Service implements LocationListener,
 					String type = geometry.getString("type");
 					JSONObject properties = feature.getJSONObject("properties");
 					double maxSpeed = properties.getDouble("Max_Speed");
+					int lane = properties.getInt("LANES");
+
 
 					ArrayList<Geoloc> routePoints = new ArrayList<>();
 					if(type.equals("MultiLineString")) {
@@ -291,6 +295,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 								routePoints.add(new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 10, 5));
 							}
 							data.add(routePoints);
+							lanes.add(lane);
 							maxSpeeds.add(maxSpeed);
 						}
 					} else {
@@ -299,6 +304,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 							routePoints.add(new Geoloc(itemArray.getDouble(1), itemArray.getDouble(0), 10, 5));
 						}
 						maxSpeeds.add(maxSpeed);
+						lanes.add(lane);
 						data.add(routePoints);
 					}
 				}
@@ -418,6 +424,7 @@ public class MockLocationProvider extends Service implements LocationListener,
 		Geoloc geo = new Geoloc(location.getLatitude(), location.getLongitude(), 5, 10);
 		locationReceivedIntent.putExtra("geoloc", geo);
 		locationReceivedIntent.putExtra("degree", degree);
+		locationReceivedIntent.putExtra("lanes", lanes.get(routeIndex));
 		locationReceivedIntent.putExtra("max_speed", maxSpeeds.get(routeIndex));
 		locationReceivedIntent.putExtra("route_number", routeIndex);
 		sendBroadcast(locationReceivedIntent);

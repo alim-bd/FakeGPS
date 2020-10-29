@@ -13,6 +13,8 @@
         <item>100 km/h</item>
         <item>200 km/h</item>
         <item>400 km/h</item>
+        <item>700 km/h</item>
+        <item>1000 km/h</item>
     </array>
 
     <array name="arr_camera_speed">

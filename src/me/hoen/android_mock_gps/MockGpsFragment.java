@@ -106,6 +106,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private TextView tvSpeed;
 	private TextView tvRouteCount;
 	private TextView tvCurrentRoute;
+	private TextView tvLanes;
 
 	private double currentLat = 0.0f;
 	private double currentLong = 0.0f;
@@ -144,6 +145,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	private boolean isFirst = false;
 	private int routeCount = 0;
 	private int currentRoute = 0;
+	private int currentLane = 0;
 
 	private ArrayList<Marker> cameraPoints = new ArrayList<>();
 
@@ -157,6 +159,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 				currentMaxSpeed = intent.getDoubleExtra("max_speed", 0);
 				currentHeading = intent.getDoubleExtra("heading", 0);
 				currentRoute = intent.getIntExtra("route_number", 0);
+				currentLane = intent.getIntExtra("lanes", 0);
 				receiveLocation(g, degree);
 			}
 		}
@@ -190,6 +193,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 
 		tvRouteCount = rootView.findViewById(R.id.tv_route_count);
 		tvCurrentRoute = rootView.findViewById(R.id.tv_current_route);
+		tvLanes = rootView.findViewById(R.id.tv_lane);
 
 		speedSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
 			@Override
@@ -216,6 +220,12 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 						break;
 					case 6:
 						speed = 400;
+						break;
+					case 7:
+						speed = 700;
+						break;
+					case 8:
+						speed = 1000;
 						break;
 				}
 				currentSpeed = speed;
@@ -667,6 +677,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 			tvLatitude.setText(String.format("%.6f", geoPoint.getLatitude()));
 			tvLongitude.setText(String.format("%.6f", geoPoint.getLongitude()));
 			tvSpeed.setText(String.valueOf(currentMaxSpeed));
+			tvLanes.setText(String.valueOf(currentLane));
 			currentLat = geoPoint.getLatitude();
 			currentLong = geoPoint.getLongitude();
 			currentDegree = degree;
@@ -1015,6 +1026,12 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 				case 6:
 					speed = 400;
 					break;
+				case 7:
+					speed = 700;
+					break;
+				case 8:
+					speed = 1000;
+					break;
 			}
 			Intent intent = new Intent(getActivity(), MockLocationProvider.class);
 			intent.putExtra("file_name", routeFilePath);
@@ -1040,7 +1057,7 @@ public class MockGpsFragment extends Fragment implements LocationListener {
 	}
 
 	private void moveRoad() {
-		if(!edtRouteNumber.getText().toString().isEmpty()) {
+		if(!edtRouteNumber.getText().toString().isEmpty() && Integer.valueOf(edtRouteNumber.getText().toString()) <= routeCount) {
 			Intent i = new Intent(MockLocationProvider.MOVE_ROAD);
 			int routeNumber = Integer.valueOf(edtRouteNumber.getText().toString());
 			i.putExtra("route", routeNumber);

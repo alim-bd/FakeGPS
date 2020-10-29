@@ -25,6 +25,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="0.4"
+                android:background="#FFFFFF"
                 android:entries="@array/arr_speed"/>
         </LinearLayout>
         <LinearLayout
@@ -143,6 +144,16 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginLeft="2dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="4dp"
+                        android:text="Lanes:"/>
+                    <TextView
+                        android:id="@+id/tv_lane"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="2dp"/>
                 </LinearLayout>
 
                 <LinearLayout
@@ -155,7 +166,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginLeft="4dp"
-                        android:text="0"/>
+                        android:text=""/>
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -166,7 +177,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginLeft="4dp"
-                        android:text="0"/>
+                        android:text=""/>
                     <EditText
                         android:id="@+id/edt_route_number"
                         android:layout_width="0dp"
